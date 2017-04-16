@@ -36,6 +36,8 @@ if (typeof jQuery === 'undefined') {
         this.time_caret = null;
         this.steps_by_minutes = [1, 2, 5, 10, 15, 20, 30, 60, 120, 180, 240, 360, 720, 1440];
         this.gt_height = 0;
+        this.snapTo = null;
+        this.label = null;
 
         this.init(element, options);
         return this;
@@ -263,6 +265,16 @@ if (typeof jQuery === 'undefined') {
         this.$ruler.append('<div class="current-time-caret"></div>');
         this.time_caret = this.$ruler.find('.current-time-caret');
         this.set_time_caret_position();
+    };
+
+    TimeSlider.prototype.get_init_cells = function(id) {
+        // make this efficient
+        for (var i=0; i < this.options.init_cells.length; i++) {
+            if (this.options.init_cells[i]._id === id) {
+                return this.options.init_cells[i];
+            }
+        }
+        return null;
     };
 
     TimeSlider.prototype.add_graduations = function() {
@@ -626,11 +638,20 @@ if (typeof jQuery === 'undefined') {
             style = 'left:' + left.toString() + 'px;';
             style += 'width:' + width.toString() + 'px;';
             var timecell_style = this.set_style(timecell['style']);
+
+            var options = this.get_init_cells(timecell['_id']);
+            var label_content = '';
+            if (options !== null) {
+                if (options.label != null) {
+                    label_content = '<div class="label">' + options.label + '</div>';
+                }
+            }
+
             this.$ruler.append(
                 '<div id="'+ timecell['_id'] +'" class="timecell' + t_class + '" ' + start + ' ' + stop + ' style="' + style + timecell_style + '">' +
                     this.time_duration(
                         (timecell['stop'] ? (timecell['stop']) : this.options.current_timestamp) - (timecell['start'])
-                    ) +
+                    ) + label_content +
                 '</div>' +
                 '<div id="t' + timecell['_id'] + '" p_id="' + timecell['_id'] + '" class="timecell-event' + t_class + '" style="' + style + '"></div>'
             );
@@ -866,10 +887,31 @@ if (typeof jQuery === 'undefined') {
             t_element: this.time_cell_selected.t_element
         };
 
+        var snap_to_minutes = null;
+        var snap_msec = 1;
+
+        // find the options for the given cell
+        var options = this.get_init_cells(id);
+
+        if (options !== null) {
+          if (options.snapTo != null) { // catch null or undefined
+                snap_to_minutes = options.snapTo;
+                snap_msec = snap_to_minutes * 60 * 1000;
+            }
+        }
+
         // move all time cell
         if (this.time_cell_selected.l_prompt && this.time_cell_selected.r_prompt) {
             var new_start = parseInt(this.time_cell_selected.element.attr('start_timestamp')) + Math.round(diff_x / this.px_per_ms);
             var new_stop = parseInt(this.time_cell_selected.element.attr('stop_timestamp')) + Math.round(diff_x / this.px_per_ms);
+
+            var new_start = Math.round(new_start/snap_msec)*snap_msec;
+            var new_stop = Math.round(new_stop/snap_msec)*snap_msec;
+
+            if (new_start >= new_stop) {
+                new_stop = new_start + snap_msec;
+            }
+
             timecell['l_prompt'] = this.time_cell_selected.l_prompt;
             timecell['r_prompt'] = this.time_cell_selected.r_prompt;
             timecell['start'] = new_start;
@@ -882,6 +924,10 @@ if (typeof jQuery === 'undefined') {
         // resize left border
         else if (this.time_cell_selected.l_prompt) {
             var new_start = parseInt(this.time_cell_selected.element.attr('start_timestamp')) + Math.round(diff_x / this.px_per_ms);
+            var new_start = Math.round(new_start/snap_msec)*snap_msec;
+            if (new_start >= parseInt(this.time_cell_selected.element.attr('stop_timestamp'))) {
+                new_start = parseInt(this.time_cell_selected.element.attr('stop_timestamp')) - snap_msec;
+            }
             timecell['l_prompt'] = this.time_cell_selected.l_prompt;
             timecell['start'] = new_start;
             this._edit_time_cell(timecell);
@@ -897,6 +943,10 @@ if (typeof jQuery === 'undefined') {
         // resize right border
         else if (this.time_cell_selected.r_prompt) {
             var new_stop = parseInt(this.time_cell_selected.element.attr('stop_timestamp')) + Math.round(diff_x / this.px_per_ms);
+            var new_stop = Math.round(new_stop/snap_msec)*snap_msec;
+            if (new_stop <= parseInt(this.time_cell_selected.element.attr('start_timestamp'))) {
+                new_stop = parseInt(this.time_cell_selected.element.attr('start_timestamp')) + snap_msec;
+            }
             timecell['r_prompt'] = this.time_cell_selected.r_prompt;
             timecell['stop'] = new_stop;
             this._edit_time_cell(timecell);
