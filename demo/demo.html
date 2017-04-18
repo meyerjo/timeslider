@@ -14,7 +14,7 @@
 		<p>With standard options</p>
 		<p>Zoom 1...48 hours:</p>
         <div id="zoom-slider123" style="width:300px;margin-bottom:10px;"></div>
-		<div id="slider123" class="time-slider"></div>
+		    <div id="slider123" class="time-slider"></div>
 	</div>
 	<div style="margin: 50px 30px;">
 		<p>Using milliseconds</p>
@@ -64,6 +64,7 @@
                         },
 						{
                             '_id': 'c2',
+                            'label': 'Live',
                             'start': (current_time - (3600 * 2.1 * 1000))
                         },
 						{
@@ -83,9 +84,22 @@
 							'label': 'A label and snap',
                             'style': {
                                 'background-color': '#76C4C4'
-                            }
+                            },
+                            'childs':[{'duration': 2}]
                         },
-					]
+					],
+                    on_move_timecell_callback: function(id, start, end) {
+					    var element = $('#' + id + '_child');
+					    if (element === undefined) {
+					        return
+                        }
+
+                        var old_end = element.attr('stop_timestamp');
+					    var old_length = element.attr('stop_timestamp') - element.attr('start_timestamp');
+
+					    element.attr('start_timestamp', start - old_length);
+					    element.attr('stop_timestamp', start);
+                    }
 				});
 
 				$('#slider456').TimeSlider({
